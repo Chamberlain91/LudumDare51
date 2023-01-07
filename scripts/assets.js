@@ -32,6 +32,10 @@ const manifest = {
             'normal': 'sprites/Watermelon.png',
             'highlight': 'sprites/Watermelon_HL.png'
         }
+    },
+    'background': {
+        'forest': 'background-forest.png',
+        'grass': 'background-grass.png'
     }
 }
 
