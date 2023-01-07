@@ -57,6 +57,59 @@ function detectCluster(grid, x, y) {
     return output
 }
 
+class CoroutineRunner {
+
+    constructor() {
+        this.coroutines = []
+    }
+
+    update(dt) {
+
+        for (let i = 0; i < this.coroutines.length; i++) {
+
+            const state = this.coroutines[i]
+
+            if (state.delay <= 0) {
+
+                const generator = state.generators[state.generators.length - 1]
+
+                const result = generator.next()
+                if (result.done) {
+                    state.generators.pop()
+                    if (state.generators.length == 0) {
+                        this.coroutines.splice(i, 1)
+                    }
+                }
+
+                if (result.value == null || result.value == undefined) {
+                    // assume null means wait next frame
+                    return
+                }
+                else if (typeof result.value == "number") {
+                    // assume number means delay
+                    state.delay = result.value
+                }
+                else {
+                    // assume generator function
+                    state.generators.push(result.value)
+                }
+
+            } else {
+                // Currently delaying
+                state.delay -= dt
+            }
+        }
+    }
+
+    begin(coroutine) {
+        this.coroutines.push({
+            generators: [coroutine()],
+            delay: 0,
+        })
+    }
+}
+
 export {
+    CoroutineRunner,
     detectCluster
 }

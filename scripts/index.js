@@ -1,4 +1,4 @@
-import { detectCluster } from "./game.js"
+import { detectCluster, CoroutineRunner } from "./game.js"
 import { loadAssets } from "./assets.js"
 
 /** @type {HTMLCanvasElement} */
@@ -147,6 +147,8 @@ for (let y = 0; y < grid_cell_size; y++) {
     }
 }
 
+const coroutineRunner = new CoroutineRunner()
+
 let lastFrameTime = performance.now()
 let currentTime = 0
 let deltaTime = 0
@@ -227,6 +229,15 @@ requestAnimationFrame(function updateFrame() {
             cell_x = ((click_x - game_offset_x) / 32) | 0
             cell_y = ((click_y - game_offset_y) / 32) | 0
 
+            coroutineRunner.begin(function* () {
+                console.log("A")
+                yield 1
+                console.log("B")
+                yield 1
+                console.log("C")
+                yield 1
+            })
+
             // ...
             for (const [x, y] of detectCluster(grid, cell_x, cell_y)) {
                 grid[y][x] = undefined
@@ -236,6 +247,9 @@ requestAnimationFrame(function updateFrame() {
         // Draw the click coordinate
         const wobble_x = Math.cos(currentTime * 8)
         drawRectangle(game_offset_x + (cell_x * 32) + wobble_x, game_offset_y + (cell_y * 32) + wobble_x, 32 - wobble_x * 2, 32 - wobble_x * 2, 'rgba(0,0,0,0.5)', 1, 2)
+
+        // ...
+        coroutineRunner.update(deltaTime)
 
         // Compute per frame timing information
         const currentFrameTime = performance.now()
