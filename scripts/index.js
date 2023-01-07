@@ -1,3 +1,4 @@
+import { detectCluster } from "./game.js"
 import { loadAssets } from "./assets.js"
 
 /** @type {HTMLCanvasElement} */
@@ -58,7 +59,7 @@ const assets = await loadAssets(progress => {
     // Clears the screen
     clearScreen()
 
-    const bar_width = 500
+    const bar_width = Math.min(500, canvas.width - 32)
     const bar_height = 20
     const bar_offset_x = (canvas.width - bar_width) / 2
     const bar_offset_y = (canvas.height - bar_height) / 2
@@ -147,6 +148,7 @@ for (let y = 0; y < grid_cell_size; y++) {
 }
 
 let lastFrameTime = performance.now()
+let currentTime = 0
 let deltaTime = 0
 
 let cell_x = 0
@@ -201,7 +203,10 @@ requestAnimationFrame(function updateFrame() {
         // Draw the grid sprites
         for (let y = 0; y < grid_cell_size; y++) {
             for (let x = 0; x < grid_cell_size; x++) {
-                drawSprite(grid[y][x].image, game_offset_x + (x * 32), game_offset_y + (y * 32))
+                const cell = grid[y][x]
+                if (cell) {
+                    drawSprite(cell.image, game_offset_x + (x * 32), game_offset_y + (y * 32))
+                }
             }
         }
 
@@ -221,18 +226,25 @@ requestAnimationFrame(function updateFrame() {
             // Get the cell index clicked on
             cell_x = ((click_x - game_offset_x) / 32) | 0
             cell_y = ((click_y - game_offset_y) / 32) | 0
+
+            // ...
+            for (const [x, y] of detectCluster(grid, cell_x, cell_y)) {
+                grid[y][x] = undefined
+            }
         }
 
         // Draw the click coordinate
-        drawRectangle(game_offset_x + (cell_x * 32), game_offset_y + (cell_y * 32), 32, 32, 'skyblue', 1, 8)
+        const wobble_x = Math.cos(currentTime * 8)
+        drawRectangle(game_offset_x + (cell_x * 32) + wobble_x, game_offset_y + (cell_y * 32) + wobble_x, 32 - wobble_x * 2, 32 - wobble_x * 2, 'rgba(0,0,0,0.5)', 1, 2)
 
         // Compute per frame timing information
         const currentFrameTime = performance.now()
         deltaTime = (currentFrameTime - lastFrameTime) / 1000
+        currentTime += deltaTime
         lastFrameTime = currentFrameTime
 
         // Draw debug FPS
-        ctx.fillStyle = "blue"
+        ctx.fillStyle = "skyblue"
         ctx.fillText(`FPS: ${Math.floor(1 / deltaTime)}`, 10, 20)
 
         // Schedule next frame
