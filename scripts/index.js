@@ -70,9 +70,43 @@ const assets = await loadAssets(progress => {
 
 console.debug(assets)
 
+let click_locations = []
+
+let bgm_is_playing = false
+window.addEventListener("click", ev => {
+
+    if (!bgm_is_playing) {
+        bgm_is_playing = true
+
+        // Play looping BGM
+        assets.music.setVolume(0.66)
+        assets.music.play(true)
+    }
+
+    // ...
+    click_locations.push([
+        ev.clientX / window.innerWidth,
+        ev.clientY / window.innerHeight
+    ])
+})
+
 function selectRandom(array) {
     const index = (Math.random() * array.length) | 0
     return array[index]
+}
+
+function shuffle(array) {
+
+    function swap(a, b) {
+        let t = array[a]
+        array[a] = array[b]
+        array[b] = t
+    }
+
+    for (let i = 0; i < array.length; i++) {
+        const index = (Math.random() * array.length) | 0
+        swap(index, i)
+    }
 }
 
 class Fruit {
@@ -83,33 +117,46 @@ class Fruit {
 }
 
 // A list of all the fruit objects
-const fruits = ["orange", "banana", "grapes", "lychee"].map(name => {
-    const images = assets.fruits[name]
-    return new Fruit(name, images.normal)
+const fruits = ["lychee", "orange", "blueberry", "grapes"].map(name => {
+    const image = assets.fruits[name]
+    return new Fruit(name, image)
 })
 
 console.log(fruits)
 
 // Construct square grid
-const grid_size = 10
-let grid = new Array(grid_size)
+const grid_cell_size = 10
+let grid = new Array(grid_cell_size)
 for (let i = 0; i < grid.length; i++) {
-    grid[i] = new Array(grid_size)
+    grid[i] = new Array(grid_cell_size)
 }
 
-// ...
-for (let y = 0; y < grid_size; y++) {
-    for (let x = 0; x < grid_size; x++) {
-        grid[y][x] = selectRandom(fruits)
+// Create randomized fruit dispenser, with equal likelyhood of fruit
+const fruit_dispenser = []
+const total_cell_count = grid_cell_size * grid_cell_size
+for (let i = 0; i < total_cell_count; i++) {
+    fruit_dispenser.push(fruits[i % fruits.length])
+}
+shuffle(fruit_dispenser)
+
+// Place fruit into grid
+for (let y = 0; y < grid_cell_size; y++) {
+    for (let x = 0; x < grid_cell_size; x++) {
+        grid[y][x] = fruit_dispenser.pop()
     }
 }
 
 let lastFrameTime = performance.now()
 let deltaTime = 0
 
+let cell_x = 0
+let cell_y = 0
+
 // The main game loop
 requestAnimationFrame(function updateFrame() {
     try {
+
+        // DRAW GAME STATE
 
         // Compute background "stretch to fill" ratio
         const background = assets.background.grass
@@ -127,8 +174,8 @@ requestAnimationFrame(function updateFrame() {
         // Draw the backround image, stretched to fill the screen (clear screen step)
         drawSprite(background, background_offset_x, background_offset_y, background_width, background_height)
 
-        // Size of the place space
-        const game_width = 32 * grid_size
+        // Size of the play space
+        const game_width = 32 * grid_cell_size
         const game_height = game_width
 
         // Compute minimum view size
@@ -148,14 +195,36 @@ requestAnimationFrame(function updateFrame() {
         const game_offset_y = (view_height - game_height) / 2
 
         // Draw a dark rectangle to give contrast to the icons
-        drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(0,0,0,0.8)', 0, 8)
+        drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(255,255,255,0.5)', 0, 8)
+        drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(0,0,0,0.5)', 1, 8)
 
         // Draw the grid sprites
-        for (let y = 0; y < grid_size; y++) {
-            for (let x = 0; x < grid_size; x++) {
+        for (let y = 0; y < grid_cell_size; y++) {
+            for (let x = 0; x < grid_cell_size; x++) {
                 drawSprite(grid[y][x].image, game_offset_x + (x * 32), game_offset_y + (y * 32))
             }
         }
+
+        // UPDATE LOGIC
+
+        while (click_locations.length > 0) {
+            const [nx, ny] = click_locations.pop()
+
+            // Compute the click coordinates in the game space
+            const click_x = nx * view_width
+            const click_y = ny * view_height
+
+            // Don't process clicks outside the game area
+            if (click_x < game_offset_x || click_x > (game_offset_x + game_width)) { continue }
+            if (click_y < game_offset_y || click_y > (game_offset_y + game_height)) { continue }
+
+            // Get the cell index clicked on
+            cell_x = ((click_x - game_offset_x) / 32) | 0
+            cell_y = ((click_y - game_offset_y) / 32) | 0
+        }
+
+        // Draw the click coordinate
+        drawRectangle(game_offset_x + (cell_x * 32), game_offset_y + (cell_y * 32), 32, 32, 'skyblue', 1, 8)
 
         // Compute per frame timing information
         const currentFrameTime = performance.now()
