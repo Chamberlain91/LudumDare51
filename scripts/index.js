@@ -24,7 +24,6 @@ try {
 
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true })
-ctx.font = "10px Itim, cursive"
 
 const clearScreen = () => {
     ctx.fillStyle = '#223'
@@ -137,14 +136,14 @@ class Fruit {
 // A list of all the fruit objects
 const fruits = ["lychee", "orange", "blueberry", "grapes"]
 
+const particles = []
+
 // Construct square grid
-const grid_size = 11
+const grid_size = 10
 let grid = new Array(grid_size)
 for (let i = 0; i < grid.length; i++) {
     grid[i] = new Array(grid_size)
 }
-
-const particles = []
 
 // Create randomized fruit dispenser, with equal likelyhood of fruit
 const fruit_dispenser = []
@@ -238,6 +237,8 @@ let deltaTime = 0
 let cell_x = 0
 let cell_y = 0
 
+let score = 0
+
 // The main game loop
 requestAnimationFrame(function updateFrame() {
     try {
@@ -265,8 +266,8 @@ requestAnimationFrame(function updateFrame() {
         const game_height = game_width
 
         // Compute minimum view size
-        const view_zoom_width = game_width + 32
-        const view_zoom_height = game_height + 32
+        const view_zoom_width = game_width + 64
+        const view_zoom_height = game_height + 64
 
         // Compute and set pixel zoom to make play space larger on screen
         const view_zoom = Math.min(canvas.width, canvas.height) / Math.min(view_zoom_width, view_zoom_height)
@@ -278,7 +279,7 @@ requestAnimationFrame(function updateFrame() {
 
         // Compute view rect transform
         const game_offset_x = (view_width - game_width) / 2
-        const game_offset_y = (view_height - game_height) / 2
+        const game_offset_y = (view_height - game_height) / 2 - 16
 
         // Draw a dark rectangle to give contrast to the icons
         drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(255,255,255,0.5)', 0, 8)
@@ -297,6 +298,12 @@ requestAnimationFrame(function updateFrame() {
         for (const particle of particles) {
             drawSprite(particle.image, game_offset_x + particle.x, game_offset_y + particle.y)
         }
+
+        const score_text = `Score: ${score}`
+        const score_text_measure = ctx.measureText(score_text)
+        ctx.fillStyle = "rgba(255,255,255,0.8)"
+        ctx.font = "20px Itim, cursive"
+        ctx.fillText(score_text, game_offset_x + game_width - score_text_measure.width, game_offset_y + game_height + 28)
 
         // UPDATE LOGIC
 
@@ -322,6 +329,11 @@ requestAnimationFrame(function updateFrame() {
 
                     // Prevent user input while animating
                     enable_input = false
+
+                    if (cluster.length > 0) {
+                        if (cluster.length == 1) { score -= 100 }
+                        else { score += (25 * cluster.length) + Math.floor(Math.pow(cluster.length, cluster.length / 10)) }
+                    }
 
                     let pop_count = 0
                     while (cluster.length > 0) {
