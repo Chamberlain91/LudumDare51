@@ -53,6 +53,13 @@ const drawSprite = (img, x, y, w = undefined, h = undefined) => {
     ctx.drawImage(img.asset, x, y, w, h)
 }
 
+const title_screen_text =
+    "\"Pleasant Porridge\" Kevin MacLeod (incompetech.com)\n" +
+    "Licensed under Creative Commons: By Attribution 4.0 License\n" +
+    "http://creativecommons.org/licenses/by/4.0/"
+
+let showTitleScreen = true
+
 // Load the assets...
 const assets = await loadAssets(progress => {
 
@@ -86,12 +93,14 @@ window.addEventListener("click", ev => {
         assets.music.play(true)
     }
 
-    if (enable_input) {
+    if (enable_input && !showTitleScreen) {
         click_locations.push([
             ev.clientX / window.innerWidth,
             ev.clientY / window.innerHeight
         ])
     }
+
+    showTitleScreen = false
 })
 
 function shuffle(array) {
@@ -139,30 +148,42 @@ const fruits = ["lychee", "orange", "blueberry", "grapes"]
 const particles = []
 
 // Construct square grid
-const grid_size = 10
+const grid_size = 11
 let grid = new Array(grid_size)
 for (let i = 0; i < grid.length; i++) {
     grid[i] = new Array(grid_size)
 }
 
-// Create randomized fruit dispenser, with equal likelyhood of fruit
-const fruit_dispenser = []
-const total_cell_count = grid_size * grid_size
-for (let i = 0; i < total_cell_count; i++) {
-    const name = fruits[i % fruits.length]
-    const fruit = new Fruit(name, assets.fruits[name])
-    fruit_dispenser.push(fruit)
-}
-shuffle(fruit_dispenser)
+let remaining_icons
+let score
 
-// Place fruit into grid
-for (let y = 0; y < grid_size; y++) {
-    for (let x = 0; x < grid_size; x++) {
-        const fruit = grid[y][x] = fruit_dispenser.pop()
-        fruit.x = x * 32
-        fruit.y = y * 32
+function restartGameField() {
+
+    remaining_icons = grid_size * grid_size
+    showTitleScreen = true
+    score = 0
+
+    // Create randomized fruit dispenser, with equal likelyhood of fruit
+    const fruit_dispenser = []
+    const total_cell_count = grid_size * grid_size
+    for (let i = 0; i < total_cell_count; i++) {
+        const name = fruits[i % fruits.length]
+        const fruit = new Fruit(name, assets.fruits[name])
+        fruit_dispenser.push(fruit)
+    }
+    shuffle(fruit_dispenser)
+
+    // Place fruit into grid
+    for (let y = 0; y < grid_size; y++) {
+        for (let x = 0; x < grid_size; x++) {
+            const fruit = grid[y][x] = fruit_dispenser.pop()
+            fruit.x = x * 32
+            fruit.y = y * 32
+        }
     }
 }
+
+restartGameField()
 
 function collapseGrid() {
 
@@ -237,8 +258,6 @@ let deltaTime = 0
 let cell_x = 0
 let cell_y = 0
 
-let score = 0
-
 // The main game loop
 requestAnimationFrame(function updateFrame() {
     try {
@@ -281,29 +300,56 @@ requestAnimationFrame(function updateFrame() {
         const game_offset_x = (view_width - game_width) / 2
         const game_offset_y = (view_height - game_height) / 2 - 16
 
-        // Draw a dark rectangle to give contrast to the icons
-        drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(255,255,255,0.5)', 0, 8)
-        drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(0,0,0,0.5)', 1, 8)
+        if (showTitleScreen) {
 
-        // Draw the grid sprites
-        for (let y = 0; y < grid_size; y++) {
-            for (let x = 0; x < grid_size; x++) {
-                const cell = grid[y][x]
-                if (cell) {
-                    drawSprite(cell.image, game_offset_x + cell.x, game_offset_y + cell.y)
+            ctx.fillStyle = "rgba(0,0,0,0.5)"
+            ctx.font = "10px Itim, cursive"
+            ctx.textAlign = "center"
+            const lines = title_screen_text.split('\n')
+            for (var i = 0; i < lines.length; i++) {
+                ctx.fillText(lines[lines.length - i - 1], game_offset_x + game_width / 2, view_height - ((i + 1) * 12))
+            }
+
+            ctx.font = "30px Itim, cursive"
+
+            const begin_text = "Click To Begin"
+            const begin_text_measure = ctx.measureText(begin_text)
+
+            const w = begin_text_measure.width
+            const h = begin_text_measure.actualBoundingBoxAscent + begin_text_measure.actualBoundingBoxDescent
+            const y = -begin_text_measure.actualBoundingBoxAscent / 2
+
+            drawRectangle((view_width - w) / 2 - 12, (view_height - 20) / 2 + y - 8, w + 24, h + 12, 'rgba(255,255,255,0.75)', 0, 4)
+            drawRectangle((view_width - w) / 2 - 12, (view_height - 20) / 2 + y - 8, w + 24, h + 12, 'rgba(0,0,0,0.5)', 1, 4)
+
+            ctx.fillStyle = "rgba(33,182,112,0.8)"
+            ctx.fillText(begin_text, view_width / 2, view_height / 2)
+
+        } else {
+            // Draw a dark rectangle to give contrast to the icons
+            drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(255,255,255,0.5)', 0, 8)
+            drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(0,0,0,0.5)', 1, 8)
+
+            // Draw the grid sprites
+            for (let y = 0; y < grid_size; y++) {
+                for (let x = 0; x < grid_size; x++) {
+                    const cell = grid[y][x]
+                    if (cell) {
+                        drawSprite(cell.image, game_offset_x + cell.x, game_offset_y + cell.y)
+                    }
                 }
             }
-        }
 
-        for (const particle of particles) {
-            drawSprite(particle.image, game_offset_x + particle.x, game_offset_y + particle.y)
-        }
+            for (const particle of particles) {
+                drawSprite(particle.image, game_offset_x + particle.x, game_offset_y + particle.y)
+            }
 
-        const score_text = `Score: ${score}`
-        const score_text_measure = ctx.measureText(score_text)
-        ctx.fillStyle = "rgba(255,255,255,0.8)"
-        ctx.font = "20px Itim, cursive"
-        ctx.fillText(score_text, game_offset_x + game_width - score_text_measure.width, game_offset_y + game_height + 28)
+            const score_text = `Score: ${score}`
+            ctx.fillStyle = "rgba(255,255,255,0.8)"
+            ctx.font = "20px Itim, cursive"
+            ctx.textAlign = "right"
+            ctx.fillText(score_text, game_offset_x + game_width, game_offset_y + game_height + 28)
+        }
 
         // UPDATE LOGIC
 
@@ -330,17 +376,23 @@ requestAnimationFrame(function updateFrame() {
                     // Prevent user input while animating
                     enable_input = false
 
+                    // Scoring
                     if (cluster.length > 0) {
                         if (cluster.length == 1) { score -= 100 }
                         else { score += (25 * cluster.length) + Math.floor(Math.pow(cluster.length, cluster.length / 10)) }
                     }
 
+                    // ...
+                    remaining_icons -= cluster.length
+
+                    // Pop off the fruit from the grid, one by one
                     let pop_count = 0
                     while (cluster.length > 0) {
+
                         // Get the next fruit to remove
                         const [x, y] = cluster.pop()
 
-                        // Move fruit to particles, give anim
+                        // Move fruit to particles, giving it some random velocity
                         const cell = grid[y][x]
                         cell.x_vel = (Math.random() * 2 - 1) * 3
                         cell.y_vel = (Math.random() * 2 - 1) * 3
@@ -439,6 +491,11 @@ requestAnimationFrame(function updateFrame() {
                         }
                     }
 
+                    if (remaining_icons == 0) {
+                        yield 10
+                        restartGameField()
+                    }
+
                     // Allow user to click again
                     enable_input = true
                 })
@@ -457,9 +514,9 @@ requestAnimationFrame(function updateFrame() {
             }
         }
 
-        // Draw the click coordinate
-        const wobble_x = Math.cos(currentTime * 8)
-        drawRectangle(game_offset_x + (cell_x * 32) + wobble_x, game_offset_y + (cell_y * 32) + wobble_x, 32 - wobble_x * 2, 32 - wobble_x * 2, 'rgba(0,0,0,0.5)', 1, 2)
+        // // Draw the click coordinate
+        // const wobble_x = Math.cos(currentTime * 8)
+        // drawRectangle(game_offset_x + (cell_x * 32) + wobble_x, game_offset_y + (cell_y * 32) + wobble_x, 32 - wobble_x * 2, 32 - wobble_x * 2, 'rgba(0,0,0,0.5)', 1, 2)
 
         // ...
         coroutineRunner.update(deltaTime)
@@ -472,6 +529,8 @@ requestAnimationFrame(function updateFrame() {
 
         // Draw debug FPS
         ctx.fillStyle = "skyblue"
+        ctx.font = "10px Itim, cursive"
+        ctx.textAlign = "left"
         ctx.fillText(`FPS: ${Math.floor(1 / deltaTime)}`, 10, 20)
 
         // Schedule next frame
