@@ -1,4 +1,4 @@
-function detectCluster(grid, x, y) {
+function detectCluster(grid, x, y, equal) {
 
     const type = grid[y][x]
     if (type == undefined)
@@ -24,12 +24,12 @@ function detectCluster(grid, x, y) {
     let counter = 0
     while (frontier.length > 0) {
 
-        if (counter++ > 100) {
-            throw new Error("INFLOOP")
-        }
+        // if (counter++ > 200) {
+        //     throw new Error("INFLOOP")
+        // }
 
         // Get the next point to search
-        const [x, y] = frontier.pop()
+        const [x, y] = frontier.shift()
 
         // Have we visited this point before?
         if (isVisited(x, y) == false) {
@@ -45,15 +45,16 @@ function detectCluster(grid, x, y) {
             let ypos = getCell(x, y + 1)
 
             // ...
-            if (xneg == type) frontier.push([x - 1, y])
-            if (xpos == type) frontier.push([x + 1, y])
-            if (yneg == type) frontier.push([x, y - 1])
-            if (ypos == type) frontier.push([x, y + 1])
+            if (xneg !== undefined && equal(xneg, type)) frontier.push([x - 1, y])
+            if (xpos !== undefined && equal(xpos, type)) frontier.push([x + 1, y])
+            if (yneg !== undefined && equal(yneg, type)) frontier.push([x, y - 1])
+            if (ypos !== undefined && equal(ypos, type)) frontier.push([x, y + 1])
         }
     }
 
     console.log(output)
 
+    output.reverse()
     return output
 }
 

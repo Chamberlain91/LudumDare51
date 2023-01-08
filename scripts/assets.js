@@ -15,7 +15,19 @@ const manifest = {
         'forest': 'background-forest.png',
         'grass': 'background-grass.png'
     },
-    'music': "pleasant_porridge.mp3"
+    'music': "pleasant_porridge.mp3",
+    'pop': [
+        "pop_0.mp3",
+        "pop_1.mp3",
+        "pop_2.mp3",
+        "pop_3.mp3",
+        "pop_4.mp3",
+        "pop_5.mp3",
+        "pop_6.mp3",
+        "pop_7.mp3",
+        "pop_8.mp3",
+        "pop_9.mp3",
+    ]
 }
 
 class Asset {

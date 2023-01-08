@@ -114,36 +114,38 @@ class Fruit {
     constructor(name, image) {
         this.image = image
         this.name = name
+        this.wobble = 0
+        this.x = 0
+        this.y = 0
     }
 }
 
 // A list of all the fruit objects
-const fruits = ["lychee", "orange", "blueberry", "grapes"].map(name => {
-    const image = assets.fruits[name]
-    return new Fruit(name, image)
-})
-
-console.log(fruits)
+const fruits = ["lychee", "orange", "blueberry", "grapes"]
 
 // Construct square grid
-const grid_cell_size = 10
-let grid = new Array(grid_cell_size)
+const grid_size = 10
+let grid = new Array(grid_size)
 for (let i = 0; i < grid.length; i++) {
-    grid[i] = new Array(grid_cell_size)
+    grid[i] = new Array(grid_size)
 }
 
 // Create randomized fruit dispenser, with equal likelyhood of fruit
 const fruit_dispenser = []
-const total_cell_count = grid_cell_size * grid_cell_size
+const total_cell_count = grid_size * grid_size
 for (let i = 0; i < total_cell_count; i++) {
-    fruit_dispenser.push(fruits[i % fruits.length])
+    const name = fruits[i % fruits.length]
+    const fruit = new Fruit(name, assets.fruits[name])
+    fruit_dispenser.push(fruit)
 }
 shuffle(fruit_dispenser)
 
 // Place fruit into grid
-for (let y = 0; y < grid_cell_size; y++) {
-    for (let x = 0; x < grid_cell_size; x++) {
-        grid[y][x] = fruit_dispenser.pop()
+for (let y = 0; y < grid_size; y++) {
+    for (let x = 0; x < grid_size; x++) {
+        const fruit = grid[y][x] = fruit_dispenser.pop()
+        fruit.x = x * 32
+        fruit.y = y * 32
     }
 }
 
@@ -179,7 +181,7 @@ requestAnimationFrame(function updateFrame() {
         drawSprite(background, background_offset_x, background_offset_y, background_width, background_height)
 
         // Size of the play space
-        const game_width = 32 * grid_cell_size
+        const game_width = 32 * grid_size
         const game_height = game_width
 
         // Compute minimum view size
@@ -203,8 +205,8 @@ requestAnimationFrame(function updateFrame() {
         drawRectangle(game_offset_x - 8, game_offset_y - 8, game_width + 16, game_height + 16, 'rgba(0,0,0,0.5)', 1, 8)
 
         // Draw the grid sprites
-        for (let y = 0; y < grid_cell_size; y++) {
-            for (let x = 0; x < grid_cell_size; x++) {
+        for (let y = 0; y < grid_size; y++) {
+            for (let x = 0; x < grid_size; x++) {
                 const cell = grid[y][x]
                 if (cell) {
                     drawSprite(cell.image, game_offset_x + (x * 32), game_offset_y + (y * 32))
@@ -229,18 +231,20 @@ requestAnimationFrame(function updateFrame() {
             cell_x = ((click_x - game_offset_x) / 32) | 0
             cell_y = ((click_y - game_offset_y) / 32) | 0
 
-            coroutineRunner.begin(function* () {
-                console.log("A")
-                yield 1
-                console.log("B")
-                yield 1
-                console.log("C")
-                yield 1
-            })
+            const cluster = detectCluster(grid, cell_x, cell_y, (a, b) => a.name == b.name)
+            if (cluster.length > 0) {
+                coroutineRunner.begin(function* () {
+                    let pop_count = 0
+                    while (cluster.length > 0) {
+                        const [x, y] = cluster.pop()
+                        grid[y][x] = undefined
 
-            // ...
-            for (const [x, y] of detectCluster(grid, cell_x, cell_y)) {
-                grid[y][x] = undefined
+                        assets.pop[pop_count].play()
+                        if (pop_count < 9) pop_count++
+
+                        yield ((8 * pop_count) / 1000)
+                    }
+                })
             }
         }
 
