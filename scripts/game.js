@@ -52,8 +52,6 @@ function detectCluster(grid, x, y, equal) {
         }
     }
 
-    console.log(output)
-
     output.reverse()
     return output
 }

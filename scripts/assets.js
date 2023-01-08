@@ -48,7 +48,7 @@ class ImageAsset extends Asset {
         if (response.status == 200) {
 
             // Get the data as a blob
-            console.log(`Downloaded '${path}'`)
+            // console.log(`Downloaded '${path}'`)
             const blob = await response.blob()
 
             // Construct image asset
@@ -87,7 +87,7 @@ class AudioAsset extends Asset {
         if (response.status == 200) {
 
             // Get the data as a blob
-            console.log(`Downloaded '${path}'`)
+            // console.log(`Downloaded '${path}'`)
             const blob = await response.blob()
 
             // Construct audio asset
@@ -106,7 +106,7 @@ const audio_extensions = new Set(["mp3", "ogg", "wav"])
 
 function loadAsset(path) {
     const ext = path.split('.').pop()
-    console.log(`Requesting '${path}' (${ext})`)
+    // console.log(`Requesting '${path}' (${ext})`)
     if (image_extensions.has(ext)) {
         return new ImageAsset(`assets/${path}`)
     } else if (audio_extensions.has(ext)) {

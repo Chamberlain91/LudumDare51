@@ -24,6 +24,7 @@ try {
 
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true })
+ctx.font = "10px Itim, cursive"
 
 const clearScreen = () => {
     ctx.fillStyle = '#223'
@@ -69,9 +70,11 @@ const assets = await loadAssets(progress => {
     drawRectangle(bar_offset_x, bar_offset_y, progress * bar_width, bar_height, 'red')
 })
 
-console.debug(assets)
+// ...
+const coroutineRunner = new CoroutineRunner()
 
 let click_locations = []
+let enable_input = true
 
 let bgm_is_playing = false
 window.addEventListener("click", ev => {
@@ -84,17 +87,13 @@ window.addEventListener("click", ev => {
         assets.music.play(true)
     }
 
-    // ...
-    click_locations.push([
-        ev.clientX / window.innerWidth,
-        ev.clientY / window.innerHeight
-    ])
+    if (enable_input) {
+        click_locations.push([
+            ev.clientX / window.innerWidth,
+            ev.clientY / window.innerHeight
+        ])
+    }
 })
-
-function selectRandom(array) {
-    const index = (Math.random() * array.length) | 0
-    return array[index]
-}
 
 function shuffle(array) {
 
@@ -114,9 +113,24 @@ class Fruit {
     constructor(name, image) {
         this.image = image
         this.name = name
+
         this.wobble = 0
+
         this.x = 0
         this.y = 0
+
+        this.x_previous = 0
+        this.y_previous = 0
+        this.x_target = 0
+        this.y_target = 0
+
+        this.fall_distance = 0
+        this.delay = 0
+
+        this.scale = 1
+
+        this.x_vel = 0
+        this.y_vel = 0
     }
 }
 
@@ -124,11 +138,13 @@ class Fruit {
 const fruits = ["lychee", "orange", "blueberry", "grapes"]
 
 // Construct square grid
-const grid_size = 10
+const grid_size = 11
 let grid = new Array(grid_size)
 for (let i = 0; i < grid.length; i++) {
     grid[i] = new Array(grid_size)
 }
+
+const particles = []
 
 // Create randomized fruit dispenser, with equal likelyhood of fruit
 const fruit_dispenser = []
@@ -149,7 +165,71 @@ for (let y = 0; y < grid_size; y++) {
     }
 }
 
-const coroutineRunner = new CoroutineRunner()
+function collapseGrid() {
+
+    function collapseVertical() {
+
+        // ...
+        for (let y = 0; y < grid_size; y++) {
+            for (let x = 0; x < grid_size; x++) {
+                const cell = grid[y][x]
+                if (cell) {
+                    cell.fall_distance = grid_size - y
+                }
+            }
+        }
+
+        for (let x = 0; x < grid_size; x++) {
+
+            let num_falling = 0
+            for (let y = grid_size - 1; y >= 0; y--) {
+
+                if (grid[y][x] != undefined) {
+
+                    // look down for spaces to skip
+                    for (let y2 = y + 1; y2 <= grid_size; y2++) {
+                        if (y2 == grid_size || grid[y2][x] != undefined) {
+                            const offset = y2 - y - 1
+                            if (offset > 0) {
+                                grid[y][x].fall_distance = num_falling
+                                grid[y + offset][x] = grid[y][x]
+                                grid[y][x] = undefined
+                                num_falling++
+                            }
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function collapseHorizontal() {
+
+        for (let x = grid_size - 1; x >= 1; x--) {
+
+            let empty = true
+            for (let y = 0; y < grid_size; y++) {
+                if (grid[y][x - 1] != undefined) {
+                    empty = false
+                    break
+                }
+            }
+
+            if (empty) {
+                for (let y = 0; y < grid_size; y++) {
+                    for (let x2 = x; x2 < grid_size; x2++) {
+                        grid[y][x2 - 1] = grid[y][x2]
+                        grid[y][x2] = undefined
+                    }
+                }
+            }
+        }
+    }
+
+    collapseVertical()
+    collapseHorizontal()
+}
 
 let lastFrameTime = performance.now()
 let currentTime = 0
@@ -209,9 +289,13 @@ requestAnimationFrame(function updateFrame() {
             for (let x = 0; x < grid_size; x++) {
                 const cell = grid[y][x]
                 if (cell) {
-                    drawSprite(cell.image, game_offset_x + (x * 32), game_offset_y + (y * 32))
+                    drawSprite(cell.image, game_offset_x + cell.x, game_offset_y + cell.y)
                 }
             }
+        }
+
+        for (const particle of particles) {
+            drawSprite(particle.image, game_offset_x + particle.x, game_offset_y + particle.y)
         }
 
         // UPDATE LOGIC
@@ -231,20 +315,133 @@ requestAnimationFrame(function updateFrame() {
             cell_x = ((click_x - game_offset_x) / 32) | 0
             cell_y = ((click_y - game_offset_y) / 32) | 0
 
+            // ...
             const cluster = detectCluster(grid, cell_x, cell_y, (a, b) => a.name == b.name)
             if (cluster.length > 0) {
                 coroutineRunner.begin(function* () {
+
+                    // Prevent user input while animating
+                    enable_input = false
+
                     let pop_count = 0
                     while (cluster.length > 0) {
+                        // Get the next fruit to remove
                         const [x, y] = cluster.pop()
+
+                        // Move fruit to particles, give anim
+                        const cell = grid[y][x]
+                        cell.x_vel = (Math.random() * 2 - 1) * 3
+                        cell.y_vel = (Math.random() * 2 - 1) * 3
+                        particles.push(cell)
+
+                        // Clear the fruit from the grid
                         grid[y][x] = undefined
 
+                        // Play the pop sound
                         assets.pop[pop_count].play()
                         if (pop_count < 9) pop_count++
 
-                        yield ((8 * pop_count) / 1000)
+                        // Wait a small delay (animation)
+                        yield (5 * pop_count) / 1000
                     }
+
+                    // Shift the grid data
+                    collapseGrid()
+
+                    // Animate the icons to match grid data
+                    const total_time = .6
+                    const slide_time = .4
+                    const delay_time = total_time - slide_time
+
+                    // Get animation targets
+                    for (let y = 0; y < grid_size; y++) {
+                        for (let x = 0; x < grid_size; x++) {
+                            const cell = grid[y][x]
+                            if (cell) {
+
+                                // ...
+                                cell.x_previous = cell.x
+                                cell.y_previous = cell.y
+
+                                // ...
+                                cell.x_target = x * 32
+                                cell.y_target = y * 32
+
+                                // ...
+                                cell.delay = (cell.fall_distance / grid_size) * delay_time
+                            }
+                        }
+                    }
+
+                    const lerp = (a, b, t) => a + (b - a) * t
+
+                    const tween = k => {
+                        if (k < (1 / 2.75)) {
+                            return 7.5625 * k * k
+                        } else if (k < (2 / 2.75)) {
+                            return 7.5625 * (k -= (1.5 / 2.75)) * k + 0.75
+                        } else if (k < (2.5 / 2.75)) {
+                            return 7.5625 * (k -= (2.25 / 2.75)) * k + 0.9375
+                        } else {
+                            return 7.5625 * (k -= (2.625 / 2.75)) * k + 0.984375
+                        }
+                    }
+
+                    let anim_time = 0
+                    while (anim_time < total_time) {
+
+                        // const t = tween(anim_time / slide_time)
+                        anim_time += deltaTime
+
+                        // Place icon in interpolated position
+                        for (let y = 0; y < grid_size; y++) {
+                            for (let x = 0; x < grid_size; x++) {
+                                const cell = grid[y][x]
+                                if (cell) {
+                                    const k = (anim_time - cell.delay) / slide_time
+                                    if (k > 0) {
+                                        if (k < 1) {
+                                            const t = tween(k)
+                                            cell.x = lerp(cell.x_previous, cell.x_target, t)
+                                            cell.y = lerp(cell.y_previous, cell.y_target, t)
+                                        } else {
+                                            cell.x = cell.x_target
+                                            cell.y = cell.y_target
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        yield null
+                    }
+
+                    // Place in final position, exactly.
+                    for (let y = 0; y < grid_size; y++) {
+                        for (let x = 0; x < grid_size; x++) {
+                            const cell = grid[y][x]
+                            if (cell) {
+                                cell.x = cell.x_target
+                                cell.y = cell.y_target
+                            }
+                        }
+                    }
+
+                    // Allow user to click again
+                    enable_input = true
                 })
+            }
+        }
+
+        for (let i = 0; i < particles.length; i++) {
+            const particle = particles[i]
+
+            particle.y_vel += 50 * deltaTime
+            particle.x += particle.x_vel
+            particle.y += particle.y_vel
+
+            if (particle.y > view_height) {
+                particles.splice(i, 1)
             }
         }
 
