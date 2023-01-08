@@ -252,7 +252,7 @@ function collapseGrid() {
 }
 
 let lastFrameTime = performance.now()
-let currentTime = 0
+// let currentTime = 0
 let deltaTime = 0
 
 let cell_x = 0
@@ -394,9 +394,11 @@ requestAnimationFrame(function updateFrame() {
 
                         // Move fruit to particles, giving it some random velocity
                         const cell = grid[y][x]
-                        cell.x_vel = (Math.random() * 2 - 1) * 3
-                        cell.y_vel = (Math.random() * 2 - 1) * 3
-                        particles.push(cell)
+                        if (cell) {
+                            cell.x_vel = (Math.random() * 2 - 1) * 3
+                            cell.y_vel = (Math.random() * 2 - 1) * 3
+                            particles.push(cell)
+                        }
 
                         // Clear the fruit from the grid
                         grid[y][x] = undefined
@@ -492,7 +494,7 @@ requestAnimationFrame(function updateFrame() {
                     }
 
                     if (remaining_icons == 0) {
-                        yield 10
+                        yield 5
                         restartGameField()
                     }
 
@@ -524,7 +526,7 @@ requestAnimationFrame(function updateFrame() {
         // Compute per frame timing information
         const currentFrameTime = performance.now()
         deltaTime = (currentFrameTime - lastFrameTime) / 1000
-        currentTime += deltaTime
+        // currentTime += deltaTime
         lastFrameTime = currentFrameTime
 
         // Draw debug FPS
