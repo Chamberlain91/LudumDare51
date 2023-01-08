@@ -148,7 +148,7 @@ const fruits = ["lychee", "orange", "blueberry", "grapes"]
 const particles = []
 
 // Construct square grid
-const grid_size = 11
+const grid_size = 12
 let grid = new Array(grid_size)
 for (let i = 0; i < grid.length; i++) {
     grid[i] = new Array(grid_size)
@@ -379,7 +379,14 @@ requestAnimationFrame(function updateFrame() {
                     // Scoring
                     if (cluster.length > 0) {
                         if (cluster.length == 1) { score -= 100 }
-                        else { score += (25 * cluster.length) + Math.floor(Math.pow(cluster.length, cluster.length / 10)) }
+                        else {
+                            // (x*25) + pow(x, x/10)
+                            // score += (25 * cluster.length) + Math.floor(Math.pow(cluster.length, cluster.length / 10))
+
+                            // R((x*25) + pow(2, x/3)) where R is "round up to 25"
+                            const R = x => Math.ceil(x / 25) * 25
+                            score += R((25 * cluster.length) + Math.floor(Math.pow(2, cluster.length / 3)))
+                        }
                     }
 
                     // ...
